@@ -1,0 +1,25 @@
+# Credentials
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# App
+case_drafts/
+*.log
+*.bak
+*.tmp
+
+# Claude / IDE
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TestRail Client</title>
+<style>
+/* ── Reset & Variables ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:            #1b1e2e;
+  --bg-header:     #0f1120;
+  --bg-sidebar:    #13152a;
+  --bg-panel:      #1e2236;
+  --bg-detail:     #20243a;
+  --bg-input:      #0d0f20;
+  --border:        #2a2e4a;
+  --border-light:  #343858;
+  --text:          #d8ddef;
+  --text-muted:    #7880a8;
+  --text-dim:      #3d4468;
+  --accent:        #4e72e8;
+  --accent-hover:  #3d5ccc;
+  --green:         #35c47a;
+  --green-bg:      rgba(53,196,122,.12);
+  --red:           #e85050;
+  --amber:         #e8a835;
+  --row-hover:     #222640;
+  --row-sel:       #2a3060;
+  --tag-bg:        #252a4a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+}
+
+body { background: var(--bg); height: 100vh; overflow: hidden; }
+[hidden] { display: none !important; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 16px; border: none; border-radius: 5px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s, opacity .15s; white-space: nowrap;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary   { background: var(--accent); color: #fff; }
+.btn-primary:not(:disabled):hover   { background: var(--accent-hover); }
+.btn-secondary { background: var(--tag-bg); color: var(--text); }
+.btn-secondary:not(:disabled):hover { background: #2d3362; }
+.btn-green  { background: rgba(53,196,122,.18); color: var(--green); border: 1px solid rgba(53,196,122,.3); }
+.btn-green:not(:disabled):hover  { background: rgba(53,196,122,.28); }
+.btn-danger { background: rgba(232,80,80,.12); color: var(--red); border: 1px solid rgba(232,80,80,.25); }
+.btn-danger:not(:disabled):hover { background: rgba(232,80,80,.22); }
+.btn-icon { padding: 4px 8px; font-size: 14px; line-height: 1; }
+.btn-sm { padding: 4px 11px; font-size: 11px; }
+
+/* ── Inputs ──────────────────────────────────────────────────────────── */
+input, select, textarea {
+  background: var(--bg-input); border: 1px solid var(--border-light);
+  border-radius: 4px; color: var(--text); font-family: inherit;
+  font-size: 12px; outline: none; transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: #1e2236; }
+
+/* ── Scrollbars ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+/* ── Status badges ───────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700;
+  letter-spacing: .03em; white-space: nowrap;
+}
+.badge-pending { background: rgba(78,114,232,.15); color: var(--accent); border: 1px solid rgba(78,114,232,.3); }
+.badge-synced  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(53,196,122,.3); }
+.badge-updated { background: rgba(232,168,53,.12); color: var(--amber); border: 1px solid rgba(232,168,53,.3); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   LOGIN SCREEN
+   ════════════════════════════════════════════════════════════════════════ */
+#login-screen {
+  display: flex; align-items: center; justify-content: center; height: 100vh;
+  background: radial-gradient(ellipse at 35% 35%, #182070 0%, #0b0d1c 65%);
+}
+.login-card {
+  width: 420px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 36px 32px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.55);
+}
+.login-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+.login-logo h1 { font-size: 18px; font-weight: 700; }
+.login-logo p  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.login-card label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-top: 14px; margin-bottom: 5px;
+}
+.login-card input { width: 100%; padding: 9px 12px; font-size: 13px; border-radius: 5px; }
+.login-row { display: flex; gap: 10px; }
+.login-row > div { flex: 1; }
+#login-btn { width: 100%; margin-top: 24px; height: 40px; font-size: 13px; }
+.login-error {
+  margin-top: 12px; padding: 9px 12px;
+  background: rgba(232,80,80,.1); border: 1px solid rgba(232,80,80,.25);
+  border-radius: 5px; color: #f08080; font-size: 12px; display: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MAIN APP
+   ════════════════════════════════════════════════════════════════════════ */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+#app-header {
+  display: flex; align-items: center; gap: 10px;
+  height: 42px; padding: 0 14px; flex-shrink: 0;
+  background: var(--bg-header); border-bottom: 1px solid var(--border); z-index: 10;
+}
+.header-brand { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; }
+.header-sep { color: var(--text-dim); }
+#header-host { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+.header-spacer { flex: 1; }
+.badge-connected {
+  font-size: 11px; padding: 2px 9px;
+  background: rgba(53,196,122,.12); color: var(--green);
+  border: 1px solid rgba(53,196,122,.25); border-radius: 20px;
+}
+
+/* ── Workspace ───────────────────────────────────────────────────────── */
+.workspace { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+#sidebar {
+  width: 230px; flex-shrink: 0;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Sidebar has two resizable halves */
+.sb-section { display: flex; flex-direction: column; overflow: hidden; }
+.sb-section.sections-half { flex: 1 1 50%; min-height: 80px; }
+.sb-section.drafts-half   { flex: 0 0 auto; max-height: 55%; border-top: 2px solid var(--border); }
+
+.sb-label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 6px; flex-shrink: 0;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sb-label button {
+  background: none; border: 1px solid var(--border-light); color: var(--text-muted);
+  border-radius: 4px; font-size: 14px; line-height: 1; padding: 1px 6px; cursor: pointer;
+  transition: color .1s, border-color .1s;
+}
+.sb-label button:hover { color: var(--text); border-color: var(--accent); }
+
+#section-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+#draft-list   { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+/* Tree nodes */
+.tree-label {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; margin: 1px 4px; border-radius: 4px; cursor: pointer;
+  color: var(--text-muted); font-size: 12px; white-space: nowrap; overflow: hidden;
+  transition: background .1s, color .1s; user-select: none;
+}
+.tree-label:hover  { background: var(--row-hover); color: var(--text); }
+.tree-label.active { background: var(--row-sel); color: var(--accent); }
+.tree-arrow { flex-shrink: 0; width: 12px; font-size: 9px; color: var(--text-dim); transition: transform .12s; }
+.tree-arrow.expanded { transform: rotate(90deg); }
+.tree-name { overflow: hidden; text-overflow: ellipsis; }
+.tree-children { padding-left: 14px; display: none; }
+.tree-children.open { display: block; }
+
+/* Draft file rows */
+.draft-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; margin: 1px 4px; border-radius: 4px; cursor: pointer;
+  color: var(--text-muted); font-size: 12px; overflow: hidden;
+  transition: background .1s, color .1s; user-select: none;
+}
+.draft-row:hover  { background: var(--row-hover); color: var(--text); }
+.draft-row.active { background: var(--row-sel); color: var(--text); }
+.draft-row-icon { flex-shrink: 0; font-size: 13px; }
+.draft-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.draft-row-count {
+  flex-shrink: 0; font-size: 10px; padding: 1px 5px;
+  background: var(--tag-bg); border-radius: 8px; color: var(--text-dim);
+}
+.draft-row-count.has-synced { color: var(--green); }
+
+/* ── Cases Panel ─────────────────────────────────────────────────────── */
+#cases-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+#cases-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+}
+#cases-header h2 {
+  font-size: 13px; font-weight: 600; flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#case-count {
+  font-size: 11px; padding: 1px 8px; background: var(--tag-bg);
+  border-radius: 10px; color: var(--text-muted); flex-shrink: 0;
+}
+#case-search { padding: 5px 10px; width: 170px; font-size: 12px; flex-shrink: 0; }
+
+.cases-scroll { flex: 1; overflow-y: auto; }
+
+/* Cases table */
+#cases-table { width: 100%; border-collapse: collapse; }
+#cases-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-header); border-bottom: 1px solid var(--border);
+  padding: 7px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+#cases-table thead th:last-child { text-align: right; }
+#cases-table tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+#cases-table tbody tr:hover    { background: var(--row-hover); }
+#cases-table tbody tr.selected { background: var(--row-sel); }
+#cases-table td { padding: 8px 12px; vertical-align: middle; }
+.td-id    { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; font-weight: 600; color: var(--accent); white-space: nowrap; width: 72px; }
+.td-title { font-size: 12px; color: var(--text); }
+.td-ver   { text-align: right; white-space: nowrap; font-size: 11px; color: var(--text-muted); width: 72px; }
+.td-status { width: 100px; }
+.td-sync   { width: 70px; text-align: right; }
+
+/* ── Detail Panel ────────────────────────────────────────────────────── */
+#detail-panel {
+  width: 0; flex-shrink: 0; overflow: hidden;
+  background: var(--bg-detail); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; transition: width .2s ease;
+  position: relative; min-width: 0;
+}
+#detail-panel.open { width: 450px; }
+/* Suppress transition while user is dragging */
+#detail-panel.resizing { transition: none; }
+
+/* Resize handle */
+#detail-resize {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  cursor: col-resize; z-index: 20;
+  background: transparent; transition: background .15s;
+}
+#detail-resize:hover, #detail-resize.dragging { background: var(--accent); opacity: .6; }
+
+/* Quick-add case bar */
+#quick-add-bar {
+  display: none; align-items: center; gap: 7px;
+  padding: 9px 12px; border-top: 1px solid var(--border);
+  background: var(--bg-header); flex-shrink: 0;
+}
+#quick-add-bar.visible { display: flex; }
+#quick-add-bar input { flex: 1; padding: 6px 10px; font-size: 12px; }
+#quick-add-bar input::placeholder { color: var(--text-dim); }
+
+#detail-header {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 11px 14px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+}
+#detail-case-id { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; margin-top: 1px; flex-shrink: 0; }
+#detail-title-wrap { flex: 1; min-width: 0; }
+#detail-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; word-break: break-word; }
+#detail-title[contenteditable="true"] {
+  border: 1px solid var(--border-light); border-radius: 4px;
+  padding: 3px 7px; background: var(--bg-input); cursor: text; outline: none;
+}
+#detail-title[contenteditable="true"]:focus { border-color: var(--accent); }
+#detail-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+.detail-scroll { flex: 1; overflow-y: auto; padding: 0 14px 28px; }
+
+/* Meta grid */
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.meta-cell { padding: 6px 6px 6px 0; }
+.meta-lbl { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
+.meta-val { font-size: 12px; color: var(--text-muted); }
+.meta-val select { width: 100%; padding: 4px 7px; }
+.meta-val input[type="text"] { width: 100%; padding: 4px 7px; }
+.meta-val .check-wrap { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+.meta-val .check-wrap input[type="checkbox"] { width: 14px; height: 14px; }
+
+.section-lbl { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 7px; }
+
+.precond-view { font-size: 12px; color: var(--text-muted); line-height: 1.6; white-space: pre-wrap; }
+textarea.precond-edit { width: 100%; padding: 8px 10px; resize: vertical; min-height: 58px; line-height: 1.6; }
+
+/* Steps */
+.steps-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.steps-tbl th { background: var(--bg-header); padding: 6px 9px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); border: 1px solid var(--border); }
+.steps-tbl td { border: 1px solid var(--border); padding: 8px 9px; vertical-align: top; color: var(--text-muted); line-height: 1.5; }
+.steps-tbl .td-num { width: 26px; text-align: center; color: var(--text-dim); font-weight: 700; vertical-align: middle; }
+.steps-tbl .td-del { width: 26px; text-align: center; vertical-align: middle; }
+.del-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 17px; line-height: 1; padding: 1px 4px; border-radius: 3px; transition: color .1s, background .1s; }
+.del-btn:hover { color: var(--red); background: rgba(232,80,80,.1); }
+.steps-tbl textarea { width: 100%; padding: 5px 7px; resize: vertical; min-height: 52px; line-height: 1.5; }
+#add-step-btn { margin-top: 8px; }
+
+/* ── Modal ───────────────────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-card {
+  width: 460px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 28px 28px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.modal-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
+.modal-card label { display: block; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); margin-top: 14px; margin-bottom: 5px; }
+.modal-card input, .modal-card select { width: 100%; padding: 8px 11px; font-size: 13px; }
+.modal-note { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+
+/* ── Misc ────────────────────────────────────────────────────────────── */
+.loader { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 16px; color: var(--text-muted); font-size: 12px; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 56px 16px; color: var(--text-dim); font-size: 13px; line-height: 1.8; }
+.empty-state .icon { font-size: 30px; margin-bottom: 10px; }
+
+#toast { position: fixed; bottom: 18px; right: 18px; z-index: 999; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.ok  { background: #172e24; color: var(--green); border: 1px solid rgba(53,196,122,.3); }
+#toast.err { background: #2e1717; color: #f08080; border: 1px solid rgba(232,80,80,.3); }
+</style>
+</head>
+<body>
+
+<!-- ════════════ LOGIN ════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="9" fill="#4e72e8"/>
+        <path d="M9 11h18M9 18h18M9 25h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="27" cy="25" r="4.5" fill="white"/>
+        <path d="M25.3 25l1.2 1.2 2.2-2.2" stroke="#4e72e8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div><h1>TestRail Client</h1><p>Connect to your TestRail instance</p></div>
+    </div>
+    <label>TestRail URL</label>
+    <input id="l-url" type="url" placeholder="https://yourorg.testrail.io">
+    <label>Email / Username</label>
+    <input id="l-user" type="email" placeholder="you@example.com">
+    <label>API Key</label>
+    <input id="l-key" type="password" placeholder="My Settings → API Keys">
+    <div class="login-row">
+      <div><label>Project ID</label><input id="l-project" type="number" placeholder="1" min="1"></div>
+      <div><label>Suite ID</label><input id="l-suite" type="number" placeholder="2" min="1"></div>
+    </div>
+    <button class="btn btn-primary" id="login-btn">Connect</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ════════════ MAIN APP ═════════════════════════════════════════════════ -->
+<div id="app" hidden>
+
+  <header id="app-header">
+    <div class="header-brand">
+      <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="8" fill="#4e72e8"/>
+        <path d="M9 11h18M9 18h18M9 25h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="27" cy="25" r="4.5" fill="white"/>
+        <path d="M25.3 25l1.2 1.2 2.2-2.2" stroke="#4e72e8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      TestRail Client
+    </div>
+    <span class="header-sep">/</span>
+    <span id="header-host">—</span>
+    <div class="header-spacer"></div>
+    <span class="badge-connected">● Connected</span>
+    <button class="btn btn-secondary btn-sm" id="disconnect-btn">Disconnect</button>
+  </header>
+
+  <div class="workspace">
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+
+      <!-- Sections half -->
+      <div class="sb-section sections-half">
+        <div class="sb-label">Sections</div>
+        <div id="section-tree">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Drafts half -->
+      <div class="sb-section drafts-half">
+        <div class="sb-label">
+          Drafts
+          <button id="new-draft-btn" title="New case file">+</button>
+        </div>
+        <div id="draft-list">
+          <div class="empty-state" style="padding:20px 12px;font-size:11px">No draft files yet.</div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Cases panel -->
+    <div id="cases-panel">
+      <div id="cases-header">
+        <h2 id="cases-section-name">Select a section or draft</h2>
+        <span id="case-count" hidden></span>
+        <input id="case-search" type="search" placeholder="Filter…" hidden>
+      </div>
+      <div class="cases-scroll">
+        <div id="cases-body">
+          <div class="empty-state">
+            <div class="icon">📋</div>
+            Select a section from the sidebar to view live cases,<br>or open a draft file to review pending cases.
+          </div>
+        </div>
+      </div>
+      <!-- Quick-add bar (draft mode only) -->
+      <div id="quick-add-bar">
+        <input id="quick-add-input" type="text" placeholder="Case title… (Enter to add)">
+        <button class="btn btn-primary btn-sm" id="quick-add-btn">Add</button>
+        <button class="btn btn-secondary btn-sm" id="quick-add-cancel">✕</button>
+      </div>
+    </div>
+
+    <!-- Detail panel -->
+    <div id="detail-panel">
+      <div id="detail-resize"></div>
+      <div id="detail-header">
+        <div id="detail-case-id"></div>
+        <div id="detail-title-wrap"><div id="detail-title"></div></div>
+        <div id="detail-actions">
+          <button class="btn btn-green btn-sm"     id="sync-one-btn"  hidden>↑ Sync</button>
+          <button class="btn btn-secondary btn-sm" id="edit-btn">Edit</button>
+          <button class="btn btn-primary btn-sm"   id="save-btn"   hidden>Save</button>
+          <button class="btn btn-secondary btn-sm" id="cancel-btn" hidden>Cancel</button>
+        </div>
+      </div>
+      <div class="detail-scroll" id="detail-body"></div>
+    </div>
+
+  </div><!-- .workspace -->
+</div><!-- #app -->
+
+<!-- ════════════ NEW DRAFT MODAL ══════════════════════════════════════════ -->
+<div id="modal-overlay" hidden>
+  <div class="modal-card">
+    <h2>New Case File</h2>
+
+    <label>File name</label>
+    <input id="nd-name" type="text" placeholder="e.g. transfers-bank-account">
+    <div class="modal-note">Saved as <code>case_drafts/&lt;name&gt;.json</code></div>
+
+    <label>Target section</label>
+    <input id="nd-section" type="text" placeholder="Section name in TestRail (e.g. Transfers)" list="nd-section-list">
+    <datalist id="nd-section-list"></datalist>
+
+    <label>PBI / Reference URL <span style="font-weight:400;text-transform:none">(optional)</span></label>
+    <input id="nd-pbi" type="url" placeholder="https://dev.azure.com/...">
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="nd-cancel">Cancel</button>
+      <button class="btn btn-primary"   id="nd-create">Create File</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ── State ──────────────────────────────────────────────────────────── */
+let currentCase          = null;   // live TestRail case object
+let currentDraft         = null;   // draft data object
+let currentDraftFilename = null;   // canonical filename (e.g. "foo.json")
+let currentDraftIdx      = null;   // index of selected draft case
+let draftMode            = false;  // true when viewing a draft file
+let editMode             = false;
+let selectedRow          = null;
+let allSections          = [];     // cached flat sections list
+
+/* ── Lookup tables ──────────────────────────────────────────────────── */
+const PRIORITY  = { 1:'Low', 2:'Medium', 3:'High', 4:'Critical' };
+const CASE_TYPE = { 3:'Automated', 6:'Functional', 9:'Regression', 11:'Smoke & Sanity', 13:'Manual' };
+const TEMPLATE  = { 1:'Test Case (Text)', 2:'Test Case (Steps)', 3:'Exploratory Session', 4:'BDD' };
+const A_STATUS  = { 1:'To Do', 2:'In Progress', 3:'Done', 4:"Can't Automate", 5:'Needs Info', 6:'On Hold', 7:'Automation Candidate' };
+const A_TYPE    = { 0:'None', 1:'Postman', 2:'Postman + Query', 3:'Reports Automation', 4:'Cucumber' };
+const DIFF      = { 1:'Easy', 2:'Medium', 3:'Difficult' };
+
+const PRIORITY_NAMES = { low:1, medium:2, high:3, critical:4 };
+const TYPE_NAMES     = { manual:13, functional:6, regression:9, automated:3 };
+
+/* ── Utils ──────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const esc     = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const stripHtml = s => String(s ?? '').replace(/<[^>]+>/g,'').trim();
+const labelOf   = (map, val, fb='—') => map[val] ?? (val != null ? String(val) : fb);
+
+function toast(msg, type='ok') {
+  const t = $('toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  clearTimeout(t._t); t._t = setTimeout(() => { t.className = ''; }, 3200);
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+/* ── Login ──────────────────────────────────────────────────────────── */
+(async () => {
+  try {
+    const d = await api('GET', '/api/env-defaults');
+    if (d.url)        $('l-url').value     = d.url;
+    if (d.user)       $('l-user').value    = d.user;
+    if (d.api_key)    $('l-key').value     = d.api_key;
+    if (d.project_id) $('l-project').value = d.project_id;
+    if (d.suite_id)   $('l-suite').value   = d.suite_id;
+  } catch(_) {}
+})();
+
+['l-url','l-user','l-key','l-project','l-suite'].forEach(id =>
+  $(id).addEventListener('keydown', e => { if (e.key==='Enter') $('login-btn').click(); })
+);
+
+$('login-btn').addEventListener('click', async () => {
+  const btn = $('login-btn'), err = $('login-error');
+  btn.disabled = true; btn.textContent = 'Connecting…'; err.style.display = 'none';
+  try {
+    await api('POST', '/api/connect', {
+      url: $('l-url').value.trim(), user: $('l-user').value.trim(),
+      api_key: $('l-key').value.trim(),
+      project_id: $('l-project').value || '', suite_id: $('l-suite').value || '',
+    });
+    $('header-host').textContent = $('l-url').value.trim().replace(/https?:\/\//,'').replace(/\/$/,'');
+    $('login-screen').hidden = true;
+    $('app').hidden = false;
+    loadSections();
+    loadDrafts();
+  } catch(e) {
+    err.textContent = e.message; err.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Connect';
+  }
+});
+
+$('disconnect-btn').addEventListener('click', async () => {
+  await api('POST', '/api/disconnect');
+  location.reload();
+});
+
+/* ── Section Tree ───────────────────────────────────────────────────── */
+async function loadSections() {
+  const tree = $('section-tree');
+  tree.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    allSections = await api('GET', '/api/sections');
+    const roots = buildTree(allSections);
+    tree.innerHTML = '';
+    roots.forEach(n => tree.appendChild(makeNode(n)));
+    // Populate datalist for draft modal
+    const dl = $('nd-section-list');
+    allSections.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.name; dl.appendChild(opt);
+    });
+  } catch(e) {
+    tree.innerHTML = `<div class="empty-state" style="color:#f08080">${esc(e.message)}</div>`;
+  }
+}
+
+function buildTree(list) {
+  const map = {}, roots = [];
+  list.forEach(s => { map[s.id] = {...s, children:[]}; });
+  list.forEach(s => {
+    if (s.parent_id == null) roots.push(map[s.id]);
+    else if (map[s.parent_id]) map[s.parent_id].children.push(map[s.id]);
+  });
+  return roots;
+}
+
+function makeNode(node) {
+  const wrap = document.createElement('div');
+  const row  = document.createElement('div');
+  row.className = 'tree-label'; row.dataset.id = node.id; row.dataset.name = node.name;
+
+  const arrow = document.createElement('span');
+  arrow.className = 'tree-arrow';
+  arrow.textContent = node.children.length ? '▶' : '';
+  row.appendChild(arrow);
+
+  const name = document.createElement('span');
+  name.className = 'tree-name'; name.textContent = node.name;
+  row.appendChild(name);
+  wrap.appendChild(row);
+
+  let childWrap = null;
+  if (node.children.length) {
+    childWrap = document.createElement('div');
+    childWrap.className = 'tree-children';
+    node.children.forEach(c => childWrap.appendChild(makeNode(c)));
+    wrap.appendChild(childWrap);
+  }
+
+  row.addEventListener('click', () => {
+    if (childWrap) { const open = childWrap.classList.toggle('open'); arrow.classList.toggle('expanded', open); }
+    activateSection(node.id, node.name, row);
+  });
+  return wrap;
+}
+
+function activateSection(id, name, rowEl) {
+  document.querySelectorAll('.tree-label.active, .draft-row.active').forEach(el => el.classList.remove('active'));
+  rowEl.classList.add('active');
+  draftMode = false;
+  currentDraft = null; currentDraftFilename = null;
+  $('quick-add-bar').classList.remove('visible');
+  document.querySelector('.draft-header-extra')?.remove();
+  loadLiveCases(id, name);
+}
+
+/* ── Live Cases ─────────────────────────────────────────────────────── */
+async function loadLiveCases(sectionId, sectionName) {
+  $('cases-section-name').textContent = sectionName;
+  $('case-count').hidden = true; $('case-search').hidden = true;
+  $('cases-body').innerHTML = '<div class="loader"><div class="spinner"></div> Loading cases…</div>';
+  closeDetail();
+
+  try {
+    const cases = await api('GET', `/api/cases?section_id=${sectionId}`);
+    $('case-count').textContent = `${cases.length} case${cases.length !== 1 ? 's' : ''}`;
+    $('case-count').hidden = false;
+    renderLiveCases(cases);
+    const search = $('case-search');
+    search.value = ''; search.hidden = false;
+    search.oninput = () => {
+      const q = search.value.toLowerCase();
+      document.querySelectorAll('.case-row').forEach(tr => { tr.hidden = q ? !tr.dataset.text.includes(q) : false; });
+    };
+  } catch(e) {
+    $('cases-body').innerHTML = `<div class="empty-state" style="color:#f08080">${esc(e.message)}</div>`;
+  }
+}
+
+function renderLiveCases(cases) {
+  if (!cases.length) {
+    $('cases-body').innerHTML = '<div class="empty-state"><div class="icon">🔍</div>No test cases in this section.</div>';
+    return;
+  }
+  const table = document.createElement('table');
+  table.id = 'cases-table';
+  table.innerHTML = `<thead><tr><th>ID</th><th>Title</th><th>API Ver</th></tr></thead><tbody></tbody>`;
+  const tbody = table.querySelector('tbody');
+  cases.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.className = 'case-row';
+    tr.dataset.id   = c.id;
+    tr.dataset.text = `c${c.id} ${(c.title||'').toLowerCase()}`;
+    tr.innerHTML = `<td class="td-id">C${c.id}</td><td class="td-title">${esc(c.title||'')}</td><td class="td-ver">${esc(c.custom_case_api_version||'')}</td>`;
+    tr.addEventListener('click', () => openLiveCase(c.id, tr));
+    tbody.appendChild(tr);
+  });
+  $('cases-body').innerHTML = '';
+  $('cases-body').appendChild(table);
+}
+
+async function openLiveCase(caseId, rowEl) {
+  if (selectedRow) selectedRow.classList.remove('selected');
+  selectedRow = rowEl; rowEl.classList.add('selected');
+  exitEditMode(false);
+  $('detail-panel').classList.add('open');
+  $('detail-case-id').textContent = `C${caseId}`;
+  $('detail-title').textContent = '';
+  $('detail-body').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  $('sync-one-btn').hidden = true;
+
+  try {
+    currentCase = await api('GET', `/api/case/${caseId}`);
+    currentDraftIdx = null;
+    $('detail-title').textContent = currentCase.title || '';
+    renderLiveDetail(currentCase, false);
+  } catch(e) {
+    $('detail-body').innerHTML = `<div class="empty-state" style="color:#f08080">${esc(e.message)}</div>`;
+  }
+}
+
+/* ── Drafts Sidebar ─────────────────────────────────────────────────── */
+async function loadDrafts() {
+  try {
+    const files = await api('GET', '/api/drafts');
+    renderDraftList(files);
+  } catch(_) {}
+}
+
+function renderDraftList(files) {
+  const list = $('draft-list');
+  if (!files.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px 12px;font-size:11px">No draft files yet.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  files.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'draft-row';
+    const synced = f.synced_count || 0;
+    const total  = f.case_count   || 0;
+    const countClass = synced === total && total > 0 ? 'draft-row-count has-synced' : 'draft-row-count';
+    row.innerHTML = `
+      <span class="draft-row-icon">📄</span>
+      <span class="draft-row-name" title="${esc(f.filename)}">${esc(f.filename.replace('.json',''))}</span>
+      <span class="${countClass}">${synced}/${total}</span>`;
+    row.addEventListener('click', () => activateDraft(f.filename, row));
+    list.appendChild(row);
+  });
+}
+
+function activateDraft(filename, rowEl) {
+  document.querySelectorAll('.tree-label.active, .draft-row.active').forEach(el => el.classList.remove('active'));
+  rowEl.classList.add('active');
+  draftMode = true;
+  currentCase = null;
+  openDraftFile(filename);
+}
+
+async function openDraftFile(filename) {
+  currentDraftFilename = filename;
+  $('cases-section-name').textContent = '📄 ' + filename.replace('.json','');
+  $('case-count').hidden = true; $('case-search').hidden = true;
+  $('cases-body').innerHTML = '<div class="loader"><div class="spinner"></div> Loading…</div>';
+  closeDetail();
+
+  try {
+    currentDraft = await api('GET', `/api/drafts/${filename}`);
+    renderDraftCases(currentDraft);
+    $('case-search').hidden = false; $('case-search').value = '';
+    $('case-search').oninput = () => {
+      const q = $('case-search').value.toLowerCase();
+      document.querySelectorAll('.case-row').forEach(tr => { tr.hidden = q ? !tr.dataset.text.includes(q) : false; });
+    };
+  } catch(e) {
+    $('cases-body').innerHTML = `<div class="empty-state" style="color:#f08080">${esc(e.message)}</div>`;
+  }
+}
+
+function renderDraftCases(draft) {
+  const cases = draft.cases || [];
+  const meta  = draft.meta  || {};
+
+  // Header controls
+  const headerExtra = document.createElement('div');
+  headerExtra.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0';
+  headerExtra.innerHTML = `
+    <span style="font-size:11px;color:var(--text-muted)">${esc(meta.section_name || '—')}</span>
+    <button class="btn btn-green btn-sm" id="sync-all-btn">↑ Sync All</button>
+    <button class="btn btn-primary btn-sm" id="add-case-btn">+ Case</button>
+    <button class="btn btn-danger btn-sm" id="delete-draft-btn">Delete</button>`;
+  // Inject into header (replace previous extra)
+  const prev = document.querySelector('#cases-header .draft-header-extra');
+  if (prev) prev.remove();
+  headerExtra.className = 'draft-header-extra';
+  $('cases-header').appendChild(headerExtra);
+
+  $('case-count').textContent = `${cases.length} case${cases.length !== 1 ? 's' : ''}`;
+  $('case-count').hidden = false;
+  // Keep quick-add bar visible if it was already open
+  if (!$('quick-add-bar').classList.contains('visible')) {
+    $('quick-add-bar').classList.remove('visible');
+  }
+
+  document.getElementById('sync-all-btn').addEventListener('click', syncAllDraftCases);
+  document.getElementById('add-case-btn').addEventListener('click', showQuickAdd);
+  document.getElementById('delete-draft-btn').addEventListener('click', deleteDraftFile);
+
+  if (!cases.length) {
+    $('cases-body').innerHTML = '<div class="empty-state"><div class="icon">✏️</div>No cases yet. Click <b>+ Case</b> to add one.</div>';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.id = 'cases-table';
+  table.innerHTML = `<thead><tr><th>#</th><th>Title</th><th>Status</th><th style="text-align:right">Sync</th></tr></thead><tbody></tbody>`;
+  const tbody = table.querySelector('tbody');
+
+  cases.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'case-row';
+    tr.dataset.text = String(i+1) + ' ' + (c.title||'').toLowerCase();
+    const statusBadge = c.testrail_id
+      ? `<span class="badge badge-synced">C${c.testrail_id}</span>`
+      : `<span class="badge badge-pending">pending</span>`;
+    tr.innerHTML = `
+      <td class="td-id" style="color:var(--text-muted)">${i+1}</td>
+      <td class="td-title">${esc(c.title||'')}</td>
+      <td class="td-status">${statusBadge}</td>
+      <td class="td-sync"></td>`;
+    const syncBtn = document.createElement('button');
+    syncBtn.className = 'btn btn-green btn-sm btn-icon';
+    syncBtn.title = c.testrail_id ? 'Update in TestRail' : 'Create in TestRail';
+    syncBtn.textContent = '↑';
+    syncBtn.addEventListener('click', e => { e.stopPropagation(); syncOneDraftCase(i, tr, syncBtn); });
+    tr.querySelector('.td-sync').appendChild(syncBtn);
+    tr.addEventListener('click', () => openDraftCase(i, tr));
+    tbody.appendChild(tr);
+  });
+
+  $('cases-body').innerHTML = '';
+  $('cases-body').appendChild(table);
+}
+
+/* ── Draft Case Detail ──────────────────────────────────────────────── */
+function openDraftCase(idx, rowEl) {
+  if (selectedRow) selectedRow.classList.remove('selected');
+  selectedRow = rowEl; rowEl.classList.add('selected');
+  currentDraftIdx = idx;
+  exitEditMode(false);
+
+  const c = currentDraft.cases[idx];
+  $('detail-panel').classList.add('open');
+  $('detail-case-id').textContent = c.testrail_id ? `C${c.testrail_id}` : `#${idx+1}`;
+  $('detail-title').textContent = c.title || '';
+  $('sync-one-btn').hidden = false;
+  $('sync-one-btn').textContent = c.testrail_id ? '↑ Update' : '↑ Sync';
+  renderDraftDetail(c, false);
+}
+
+function renderDraftDetail(c, editing) {
+  const body = $('detail-body');
+  body.innerHTML = '';
+
+  // Meta grid
+  const grid = document.createElement('div');
+  grid.className = 'meta-grid';
+
+  function cell(lbl, viewVal, editHtml) {
+    const d = document.createElement('div'); d.className = 'meta-cell';
+    d.innerHTML = `<div class="meta-lbl">${lbl}</div>`;
+    const v = document.createElement('div'); v.className = 'meta-val';
+    if (editing) v.innerHTML = editHtml;
+    else         v.textContent = viewVal || '—';
+    d.appendChild(v); return d;
+  }
+  function sel(id, map, current) {
+    const opts = Object.entries(map).map(([k,v]) => `<option value="${k}"${k==current?' selected':''}>${esc(v)}</option>`).join('');
+    return `<select id="${id}">${opts}</select>`;
+  }
+  function txt(id, val, ph='') {
+    return `<input type="text" id="${id}" value="${esc(val||'')}" placeholder="${esc(ph)}">`;
+  }
+
+  const priorityStr = c.priority || 'Medium';
+  const typeStr     = c.type     || 'Manual';
+  const priorityId  = PRIORITY_NAMES[priorityStr.toLowerCase()] || 2;
+  const typeId      = TYPE_NAMES[typeStr.toLowerCase()] || 13;
+
+  // Section cell — full-width, with datalist autocomplete in edit mode
+  const sectionCell = document.createElement('div');
+  sectionCell.className = 'meta-cell'; sectionCell.style.gridColumn = '1 / -1';
+  sectionCell.innerHTML = `<div class="meta-lbl">Section</div>`;
+  const sv = document.createElement('div'); sv.className = 'meta-val';
+  const effectiveSection = c.section_name || currentDraft?.meta?.section_name || '';
+  if (editing) {
+    sv.innerHTML = `<input type="text" id="e-section" value="${esc(effectiveSection)}" placeholder="Section name (e.g. Transfers)" list="nd-section-list">`;
+  } else {
+    sv.textContent = effectiveSection || '—';
+  }
+  sectionCell.appendChild(sv);
+  grid.appendChild(sectionCell);
+
+  grid.append(
+    cell('Type',     typeStr,     sel('e-type',     CASE_TYPE, typeId)),
+    cell('Priority', priorityStr, sel('e-priority', PRIORITY,  priorityId)),
+    cell('Tags',     c.tags,      txt('e-tags',     c.tags, '@smoke @feature')),
+    cell('API Version', c.api_version, txt('e-apiver', c.api_version, '1.0')),
+    cell('References',  c.refs,       txt('e-refs',   c.refs, 'https://...')),
+  );
+
+  const regCell = document.createElement('div');
+  regCell.className = 'meta-cell';
+  regCell.style.gridColumn = '1 / -1';
+  regCell.innerHTML = `<div class="meta-lbl">API Regression</div>`;
+  const rv = document.createElement('div'); rv.className = 'meta-val';
+  if (editing) rv.innerHTML = `<label class="check-wrap"><input type="checkbox" id="e-apireg" ${c.api_regression?'checked':''}> Mark as API Regression</label>`;
+  else         rv.textContent = c.api_regression ? 'Yes' : 'No';
+  regCell.appendChild(rv);
+  grid.appendChild(regCell);
+  body.appendChild(grid);
+
+  // Preconditions
+  const psec = document.createElement('div');
+  psec.innerHTML = `<div class="section-lbl">Preconditions</div>`;
+  if (editing) {
+    const ta = document.createElement('textarea');
+    ta.className = 'precond-edit'; ta.id = 'e-preconds'; ta.rows = 2;
+    ta.value = c.preconditions || '';
+    psec.appendChild(ta);
+  } else {
+    const pv = document.createElement('div'); pv.className = 'precond-view';
+    pv.textContent = c.preconditions || '—';
+    psec.appendChild(pv);
+  }
+  body.appendChild(psec);
+
+  // Steps
+  const steps = c.steps || [];
+  const ssec  = document.createElement('div');
+  ssec.innerHTML = `<div class="section-lbl">Steps</div>`;
+
+  const tbl = document.createElement('table');
+  tbl.className = 'steps-tbl';
+  tbl.innerHTML = `<colgroup><col style="width:28px"><col><col>${editing?'<col style="width:28px">':''}</colgroup>
+    <thead><tr><th>#</th><th>Action</th><th>Expected</th>${editing?'<th></th>':''}</tr></thead>
+    <tbody id="steps-body"></tbody>`;
+
+  const tbody = tbl.querySelector('#steps-body');
+
+  function addRow(idx, action='', expected='') {
+    const tr = document.createElement('tr');
+    if (editing) {
+      tr.innerHTML = `<td class="td-num">${idx}</td>
+        <td><textarea placeholder="Action…">${esc(action)}</textarea></td>
+        <td><textarea placeholder="Expected result…">${esc(expected)}</textarea></td>
+        <td class="td-del"><button class="del-btn">×</button></td>`;
+      tr.querySelector('.del-btn').addEventListener('click', () => { tr.remove(); renum(); });
+    } else {
+      tr.innerHTML = `<td class="td-num">${idx}</td><td>${esc(action)}</td><td>${esc(expected)}</td>`;
+    }
+    tbody.appendChild(tr);
+  }
+
+  steps.forEach((s,i) => addRow(i+1, s.action||'', s.expected||''));
+  if (!steps.length && !editing) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-dim)">No steps defined.</td></tr>`;
+  }
+
+  ssec.appendChild(tbl);
+
+  if (editing) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-secondary btn-sm';
+    addBtn.id = 'add-step-btn'; addBtn.textContent = '+ Add Step';
+    addBtn.addEventListener('click', () => addRow(tbody.querySelectorAll('tr').length+1));
+    ssec.appendChild(addBtn);
+  }
+  body.appendChild(ssec);
+}
+
+function renum() {
+  document.querySelectorAll('#steps-body .td-num').forEach((el,i) => { el.textContent = i+1; });
+}
+
+function openNewDraftCase() {
+  if (!currentDraft) return;
+  currentDraftIdx = null;
+  if (selectedRow) { selectedRow.classList.remove('selected'); selectedRow = null; }
+  $('detail-panel').classList.add('open');
+  $('detail-case-id').textContent = 'New';
+  $('detail-title').textContent = '';
+  $('sync-one-btn').hidden = true;
+
+  // Enter edit mode with blank case
+  editMode = true;
+  $('edit-btn').hidden = true; $('save-btn').hidden = false; $('cancel-btn').hidden = false;
+  const t = $('detail-title'); t.contentEditable = 'true'; t.focus();
+  renderDraftDetail({}, true);
+}
+
+/* ── Save draft case ────────────────────────────────────────────────── */
+async function saveDraftCaseEdit() {
+  if (!currentDraft) return;
+  const btn = $('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const steps = [];
+  document.querySelectorAll('#steps-body tr').forEach(tr => {
+    const tas = tr.querySelectorAll('textarea');
+    if (tas.length >= 2) steps.push({ action: tas[0].value.trim(), expected: tas[1].value.trim() });
+  });
+
+  // Reverse lookup priority/type from selected id
+  const priorityId = parseInt($('e-priority').value);
+  const typeId     = parseInt($('e-type').value);
+  const priorityName = Object.entries(PRIORITY).find(([k]) => +k===priorityId)?.[1] || 'Medium';
+  const typeName     = Object.entries(CASE_TYPE).find(([k]) => +k===typeId)?.[1]    || 'Manual';
+
+  // Resolve section: clear cached section_id if name changed
+  const sectionName = $('e-section')?.value.trim() || '';
+  const prevCase    = currentDraftIdx !== null ? currentDraft.cases[currentDraftIdx] : {};
+  const sectionId   = (sectionName === prevCase.section_name) ? (prevCase.section_id || null) : null;
+
+  const payload = {
+    title:         $('detail-title').textContent.trim(),
+    priority:      priorityName,
+    type:          typeName,
+    section_name:  sectionName || null,
+    section_id:    sectionId,
+    tags:          $('e-tags').value.trim(),
+    api_version:   $('e-apiver').value.trim(),
+    refs:          $('e-refs').value.trim(),
+    api_regression: $('e-apireg').checked,
+    preconditions:  $('e-preconds').value.trim(),
+    steps,
+    testrail_id:   prevCase.testrail_id || null,
+    status:        prevCase.status || 'pending',
+  };
+
+  if (!payload.title) { toast('Title is required.', 'err'); btn.disabled=false; btn.textContent='Save'; return; }
+
+  if (currentDraftIdx !== null) {
+    currentDraft.cases[currentDraftIdx] = payload;
+  } else {
+    currentDraft.cases.push(payload);
+    currentDraftIdx = currentDraft.cases.length - 1;
+  }
+
+  try {
+    currentDraft = await api('PUT', `/api/drafts/${currentDraftFilename}`, currentDraft);
+    // Re-render
+    exitEditMode(false);
+    $('detail-title').textContent = payload.title;
+    $('detail-case-id').textContent = payload.testrail_id ? `C${payload.testrail_id}` : `#${currentDraftIdx+1}`;
+    $('sync-one-btn').hidden = false;
+    renderDraftDetail(payload, false);
+    renderDraftCases(currentDraft);
+    await loadDrafts();
+    toast('Case saved to draft.');
+  } catch(e) {
+    // Roll back
+    if (currentDraftIdx !== null && currentDraftIdx < currentDraft.cases.length) {
+      currentDraft.cases.splice(currentDraftIdx, 1);
+    }
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+/* ── Quick-add case (title only) ────────────────────────────────────── */
+function showQuickAdd() {
+  const bar = $('quick-add-bar');
+  bar.classList.add('visible');
+  $('quick-add-input').value = '';
+  $('quick-add-input').focus();
+}
+
+async function quickAddCase() {
+  const title = $('quick-add-input').value.trim();
+  if (!title) { $('quick-add-input').focus(); return; }
+  if (!currentDraft || !currentDraftFilename) return;
+  const btn = $('quick-add-btn');
+  btn.disabled = true;
+  const newCase = { title, priority:'Medium', type:'Manual', steps:[], status:'pending', testrail_id:null };
+  currentDraft.cases.push(newCase);
+  try {
+    currentDraft = await api('PUT', `/api/drafts/${currentDraftFilename}`, currentDraft);
+    $('quick-add-bar').classList.remove('visible');
+    $('quick-add-input').value = '';
+    const idx = currentDraft.cases.length - 1;
+    renderDraftCases(currentDraft);
+    await loadDrafts();
+    // Auto-open the new case in edit mode
+    const rows = document.querySelectorAll('.case-row');
+    const newRow = rows[idx];
+    if (newRow) openDraftCase(idx, newRow);
+    toast(`Added "${title}"`);
+  } catch(e) {
+    currentDraft.cases.pop();
+    toast(e.message, 'err');
+  } finally { btn.disabled = false; }
+}
+
+$('quick-add-btn').addEventListener('click', quickAddCase);
+$('quick-add-cancel').addEventListener('click', () => { $('quick-add-bar').classList.remove('visible'); });
+$('quick-add-input').addEventListener('keydown', e => { if (e.key==='Enter') quickAddCase(); if (e.key==='Escape') $('quick-add-cancel').click(); });
+
+/* ── Sync draft cases ───────────────────────────────────────────────── */
+async function syncOneDraftCase(idx, rowEl, btnEl) {
+  if (!currentDraftFilename) return;
+  const orig = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = '…';
+  try {
+    const result = await api('POST', `/api/drafts/${currentDraftFilename}/sync/${idx}`);
+    currentDraft = result.draft;
+    renderDraftCases(currentDraft);
+    await loadDrafts();
+    toast(`${result.action === 'created' ? 'Created' : 'Updated'} C${result.testrail_id}`);
+  } catch(e) {
+    toast(e.message, 'err');
+    btnEl.disabled = false; btnEl.textContent = orig;
+  }
+}
+
+async function syncAllDraftCases() {
+  if (!currentDraftFilename) return;
+  const btn = document.getElementById('sync-all-btn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await api('POST', `/api/drafts/${currentDraftFilename}/sync`);
+    const ok  = r.results.filter(x => x.ok).length;
+    const err = r.results.filter(x => !x.ok).length;
+    currentDraft = r.draft;
+    renderDraftCases(currentDraft);
+    await loadDrafts();
+    if (err) toast(`${ok} synced, ${err} error(s) — check console`, 'err');
+    else     toast(`All ${ok} case${ok!==1?'s':''} synced.`);
+    if (r.errors.length) console.error('Sync errors:', r.errors);
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='↑ Sync All'; }
+  }
+}
+
+async function deleteDraftFile() {
+  if (!currentDraftFilename) return;
+  if (!confirm(`Delete ${currentDraftFilename}? This cannot be undone.`)) return;
+  try {
+    await api('DELETE', `/api/drafts/${currentDraftFilename}`);
+    currentDraft = null; currentDraftFilename = null; draftMode = false;
+    document.querySelector('.draft-row.active')?.classList.remove('active');
+    closeDetail();
+    $('quick-add-bar').classList.remove('visible');
+    $('cases-section-name').textContent = 'Select a section or draft';
+    $('cases-body').innerHTML = '<div class="empty-state"><div class="icon">📋</div>Select a section from the sidebar to view live cases,<br>or open a draft file to review pending cases.</div>';
+    $('case-count').hidden = true; $('case-search').hidden = true;
+    document.querySelector('.draft-header-extra')?.remove();
+    await loadDrafts();
+    toast('Draft file deleted.');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+/* ── Sync-one button (detail panel header) ──────────────────────────── */
+$('sync-one-btn').addEventListener('click', async () => {
+  if (!currentDraftFilename || currentDraftIdx === null) return;
+  const btn = $('sync-one-btn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const result = await api('POST', `/api/drafts/${currentDraftFilename}/sync/${currentDraftIdx}`);
+    currentDraft = result.draft;
+    const c = currentDraft.cases[currentDraftIdx];
+    $('detail-case-id').textContent = `C${result.testrail_id}`;
+    btn.textContent = '↑ Update'; btn.disabled = false;
+    renderDraftDetail(c, false);
+    renderDraftCases(currentDraft);
+    await loadDrafts();
+    toast(`${result.action === 'created' ? 'Created' : 'Updated'} C${result.testrail_id}`);
+  } catch(e) {
+    toast(e.message, 'err');
+    btn.disabled = false; btn.textContent = currentDraft?.cases[currentDraftIdx]?.testrail_id ? '↑ Update' : '↑ Sync';
+  }
+});
+
+/* ── Detail panel resize ─────────────────────────────────────────────── */
+(function() {
+  const handle = $('detail-resize');
+  const panel  = $('detail-panel');
+  let startX, startW;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    handle.classList.add('dragging');
+    panel.classList.add('resizing');
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e) {
+    const delta = startX - e.clientX; // dragging left = wider
+    const newW  = Math.max(300, Math.min(900, startW + delta));
+    panel.style.width = newW + 'px';
+  }
+
+  function onUp() {
+    handle.classList.remove('dragging');
+    panel.classList.remove('resizing');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+})();
+
+/* ── New Draft Modal ────────────────────────────────────────────────── */
+$('new-draft-btn').addEventListener('click', () => {
+  $('nd-name').value = ''; $('nd-section').value = ''; $('nd-pbi').value = '';
+  $('modal-overlay').hidden = false;
+  setTimeout(() => $('nd-name').focus(), 50);
+});
+
+$('nd-cancel').addEventListener('click', () => { $('modal-overlay').hidden = true; });
+$('modal-overlay').addEventListener('click', e => { if (e.target === $('modal-overlay')) $('modal-overlay').hidden = true; });
+
+$('nd-create').addEventListener('click', async () => {
+  const name    = $('nd-name').value.trim();
+  const section = $('nd-section').value.trim();
+  if (!name)    { $('nd-name').focus();    return; }
+  if (!section) { $('nd-section').focus(); return; }
+
+  const btn = $('nd-create');
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  // Try to resolve section_id from loaded sections
+  const matched = allSections.find(s => s.name.toLowerCase() === section.toLowerCase());
+  const sectionId = matched?.id || null;
+
+  try {
+    await api('POST', '/api/drafts', {
+      name, section_name: section,
+      section_id: sectionId,
+      pbi_url: $('nd-pbi').value.trim(),
+    });
+    $('modal-overlay').hidden = true;
+    await loadDrafts();
+    // Auto-activate the new file
+    const rows = document.querySelectorAll('.draft-row');
+    const newRow = Array.from(rows).find(r => r.querySelector('.draft-row-name')?.textContent === name);
+    if (newRow) newRow.click();
+    toast(`Created ${name}.json`);
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create File';
+  }
+});
+
+['nd-name','nd-section','nd-pbi'].forEach(id =>
+  $(id).addEventListener('keydown', e => { if (e.key==='Enter') $('nd-create').click(); })
+);
+
+/* ── Edit / Save / Cancel (live + draft) ───────────────────────────── */
+$('edit-btn').addEventListener('click', () => {
+  if (!currentCase && currentDraftIdx === null) return;
+  editMode = true;
+  $('edit-btn').hidden=true; $('save-btn').hidden=false; $('cancel-btn').hidden=false;
+  $('sync-one-btn').hidden = true;
+  const t = $('detail-title'); t.contentEditable='true'; t.focus();
+  if (draftMode && currentDraftIdx !== null) renderDraftDetail(currentDraft.cases[currentDraftIdx], true);
+  else if (!draftMode && currentCase)        renderLiveDetail(currentCase, true);
+});
+
+$('cancel-btn').addEventListener('click', () => { exitEditMode(true); });
+
+$('save-btn').addEventListener('click', async () => {
+  if (draftMode) await saveDraftCaseEdit();
+  else           await saveLiveCaseEdit();
+});
+
+function exitEditMode(rerender=false) {
+  editMode = false;
+  $('edit-btn').hidden=false; $('save-btn').hidden=true; $('cancel-btn').hidden=true;
+  const t = $('detail-title'); t.contentEditable='false';
+  if (draftMode && currentDraftIdx !== null) {
+    $('sync-one-btn').hidden = false;
+    if (rerender) { t.textContent = currentDraft.cases[currentDraftIdx]?.title||''; renderDraftDetail(currentDraft.cases[currentDraftIdx], false); }
+  } else if (!draftMode && currentCase) {
+    $('sync-one-btn').hidden = true;
+    if (rerender) { t.textContent = currentCase.title||''; renderLiveDetail(currentCase, false); }
+  }
+}
+
+function closeDetail() {
+  $('detail-panel').classList.remove('open');
+  currentCase = null; currentDraftIdx = null;
+  if (selectedRow) { selectedRow.classList.remove('selected'); selectedRow = null; }
+  exitEditMode(false);
+}
+
+/* ── Live case detail (view + edit) ─────────────────────────────────── */
+function renderLiveDetail(c, editing) {
+  const body = $('detail-body');
+  body.innerHTML = '';
+
+  const grid = document.createElement('div'); grid.className = 'meta-grid';
+
+  function cell(lbl, viewVal, editHtml) {
+    const d = document.createElement('div'); d.className = 'meta-cell';
+    d.innerHTML = `<div class="meta-lbl">${lbl}</div>`;
+    const v = document.createElement('div'); v.className = 'meta-val';
+    if (editing) v.innerHTML = editHtml;
+    else         v.textContent = viewVal || '—';
+    d.appendChild(v); return d;
+  }
+  function sel(id, map, current) {
+    const opts = Object.entries(map).map(([k,v]) => `<option value="${k}"${k==current?' selected':''}>${esc(v)}</option>`).join('');
+    return `<select id="${id}">${opts}</select>`;
+  }
+  function txt(id, val, ph='') { return `<input type="text" id="${id}" value="${esc(val||'')}" placeholder="${esc(ph)}"`+'>';}
+
+  grid.append(
+    cell('Type',             labelOf(CASE_TYPE, c.type_id),         sel('e-type',    CASE_TYPE, c.type_id)),
+    cell('Priority',         labelOf(PRIORITY,  c.priority_id),      sel('e-priority',PRIORITY,  c.priority_id)),
+    cell('Estimate',         c.estimate,                             txt('e-estimate',c.estimate,'30s')),
+    cell('References',       c.refs,                                 txt('e-refs',    c.refs,'ADO URL or ticket')),
+    cell('Automation Type',  labelOf(A_TYPE,   c.custom_automation_type),  sel('e-atype',  A_TYPE,   c.custom_automation_type??0)),
+    cell('Automated Status', labelOf(A_STATUS, c.custom_automated_status), sel('e-astatus',A_STATUS, c.custom_automated_status??1)),
+    cell('API Version',      c.custom_case_api_version,              txt('e-apiver',  c.custom_case_api_version,'1.0')),
+    cell('Difficulty',       labelOf(DIFF,     c.custom_difficulty),       sel('e-diff',   DIFF,     c.custom_difficulty??2)),
+  );
+
+  const regCell = document.createElement('div');
+  regCell.className = 'meta-cell'; regCell.style.gridColumn = '1 / -1';
+  regCell.innerHTML = `<div class="meta-lbl">API Regression</div>`;
+  const rv = document.createElement('div'); rv.className = 'meta-val';
+  if (editing) rv.innerHTML = `<label class="check-wrap"><input type="checkbox" id="e-apireg" ${c.custom_case_api_regression?'checked':''}> Mark as API Regression</label>`;
+  else         rv.textContent = c.custom_case_api_regression ? 'Yes' : 'No';
+  regCell.appendChild(rv); grid.appendChild(regCell);
+  body.appendChild(grid);
+
+  const preconds = (c.custom_preconds||'').replace(/<[^>]+>/g,'').trim();
+  const psec = document.createElement('div');
+  psec.innerHTML = `<div class="section-lbl">Preconditions</div>`;
+  if (editing) { const ta=document.createElement('textarea'); ta.className='precond-edit'; ta.id='e-preconds'; ta.rows=3; ta.value=preconds; psec.appendChild(ta); }
+  else         { const pv=document.createElement('div'); pv.className='precond-view'; pv.textContent=preconds||'—'; psec.appendChild(pv); }
+  body.appendChild(psec);
+
+  const steps = c.custom_steps_separated || [];
+  const ssec  = document.createElement('div');
+  ssec.innerHTML = `<div class="section-lbl">Steps</div>`;
+  const tbl = document.createElement('table'); tbl.className='steps-tbl';
+  tbl.innerHTML = `<colgroup><col style="width:28px"><col><col>${editing?'<col style="width:28px">':''}</colgroup>
+    <thead><tr><th>#</th><th>Step</th><th>Expected Result</th>${editing?'<th></th>':''}</tr></thead>
+    <tbody id="steps-body"></tbody>`;
+  const tbody = tbl.querySelector('#steps-body');
+
+  function addRow(idx, content='', expected='') {
+    const tr = document.createElement('tr');
+    if (editing) {
+      tr.innerHTML = `<td class="td-num">${idx}</td><td><textarea placeholder="Step action…">${esc(content)}</textarea></td><td><textarea placeholder="Expected result…">${esc(expected)}</textarea></td><td class="td-del"><button class="del-btn">×</button></td>`;
+      tr.querySelector('.del-btn').addEventListener('click', () => { tr.remove(); renum(); });
+    } else {
+      tr.innerHTML = `<td class="td-num">${idx}</td><td>${esc(stripHtml(content))}</td><td>${esc(stripHtml(expected))}</td>`;
+    }
+    tbody.appendChild(tr);
+  }
+
+  steps.forEach((s,i) => addRow(i+1, editing ? stripHtml(s.content) : s.content, editing ? stripHtml(s.expected) : s.expected));
+  if (!steps.length && !editing) tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-dim)">No steps.</td></tr>`;
+
+  ssec.appendChild(tbl);
+  if (editing) {
+    const ab = document.createElement('button'); ab.className='btn btn-secondary btn-sm'; ab.id='add-step-btn'; ab.textContent='+ Add Step';
+    ab.addEventListener('click', () => addRow(tbody.querySelectorAll('tr').length+1));
+    ssec.appendChild(ab);
+  }
+  body.appendChild(ssec);
+}
+
+async function saveLiveCaseEdit() {
+  if (!currentCase) return;
+  const btn = $('save-btn'); btn.disabled=true; btn.textContent='Saving…';
+  const steps = [];
+  document.querySelectorAll('#steps-body tr').forEach(tr => {
+    const tas = tr.querySelectorAll('textarea');
+    if (tas.length>=2) steps.push({content:tas[0].value.trim(), expected:tas[1].value.trim()});
+  });
+  const payload = {
+    title: $('detail-title').textContent.trim(),
+    type_id: parseInt($('e-type').value), priority_id: parseInt($('e-priority').value),
+    estimate: $('e-estimate').value.trim()||null, refs: $('e-refs').value.trim()||null,
+    custom_preconds: $('e-preconds').value.trim(),
+    custom_automated_status: parseInt($('e-astatus').value),
+    custom_automation_type:  parseInt($('e-atype').value),
+    custom_case_api_version: $('e-apiver').value.trim(),
+    custom_difficulty:       parseInt($('e-diff').value),
+    custom_case_api_regression: $('e-apireg').checked,
+    custom_steps_separated: steps,
+  };
+  try {
+    const updated = await api('PUT', `/api/case/${currentCase.id}`, payload);
+    currentCase = updated;
+    $('detail-title').textContent = updated.title||'';
+    exitEditMode(false); renderLiveDetail(updated, false);
+    if (selectedRow) {
+      selectedRow.querySelector('.td-title').textContent = updated.title||'';
+      selectedRow.dataset.text = `c${updated.id} ${(updated.title||'').toLowerCase()}`;
+      const vt = selectedRow.querySelector('.td-ver'); if (vt) vt.textContent = updated.custom_case_api_version||'';
+    }
+    toast('Case saved successfully.');
+  } catch(e) { toast(e.message,'err'); }
+  finally { btn.disabled=false; btn.textContent='Save'; }
+}
+</script>
+</body>
+</html>

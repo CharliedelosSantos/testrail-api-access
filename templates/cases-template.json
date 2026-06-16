@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "section_name": "Promo Recon - RR_Daily_Promotion_Activity",
+    "section_id": null,
+    "pbi_url": "URL to the PBI",
+    "created_at": "2026-06-16T12:03:08.683884+00:00",
+    "updated_at": "2026-06-16T12:03:08.684412+00:00"
+  },
+  "cases": [{
+      "title": "Test Case Title 1",
+      "priority": "Medium",
+      "type": "Manual",
+      "steps": [
+        {
+          "action": "Step 1",
+          "expected": "Expected result for step 1."
+        },
+        {
+          "action": "Step 2",
+          "expected": "Expected result for step 2."
+        }
+      ],
+      "tags": "@cucumber-tag",
+      "api_version": "",
+      "api_regression": false,
+      "testrail_id": null,
+      "status": null
+    },{
+      "title": "Test Case Title 2",
+      "priority": "High",
+      "type": "Automated",
+      "steps": [
+        {
+          "action": "Step 1",
+          "expected": "Expected result for step 1."
+        },
+        {
+          "action": "Step 2",
+          "expected": "Expected result for step 2."
+        }
+      ],
+      "tags": "@cucumber-tag",
+      "api_version": "",
+      "api_regression": false,
+      "testrail_id": null,
+      "status": null
+    }]
+}
