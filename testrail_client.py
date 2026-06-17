@@ -51,10 +51,10 @@ TESTRAIL_SUITE_ID   = os.getenv("TESTRAIL_SUITE_ID", "")        # numeric suite 
 
 # Priority name → TestRail priority_id
 PRIORITY_MAP: dict[str, int] = {
-    "critical": 4,
-    "high":     3,
-    "medium":   2,
-    "low":      1,
+    "Critical": 4,
+    "High":     3,
+    "Medium":   2,
+    "Low":      1,
 }
 
 # Type name → TestRail type_id
@@ -99,9 +99,9 @@ AUTOMATION_TYPE_MAP: dict[str, int] = {
 
 # custom_difficulty dropdown option ids
 DIFFICULTY_MAP: dict[str, int] = {
-    "easy":      1,
-    "medium":    2,
-    "difficult": 3,
+    "Easy":      1,
+    "Medium":    2,
+    "Difficult": 3,
 }
 
 # custom_automation_status dropdown option ids (separate from automated_status)
