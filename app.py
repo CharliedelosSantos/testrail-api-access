@@ -107,10 +107,14 @@ def _sync_one(client: TestrailClient, draft: dict, idx: int) -> dict:
         [s.get("action", "") for s in case.get("steps", [])],
         [s.get("expected", "") for s in case.get("steps", [])],
     )
+    difficulty = case.get("difficulty")
+    if difficulty is None:
+        raise ValueError("Difficulty is required before syncing.")
+
     custom = {
-        "custom_automated_status": 1,   # To Do
-        "custom_automation_type":  4,   # Cucumber
-        "custom_difficulty":       2,   # Medium
+        "custom_automated_status": 1,          # To Do
+        "custom_automation_type":  4,          # Cucumber
+        "custom_difficulty":       difficulty,
     }
     if case.get("tags"):
         custom["custom_case_cucumber_tags"] = case["tags"]

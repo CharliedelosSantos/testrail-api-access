@@ -79,6 +79,25 @@ select option { background: #1e2236; }
 .badge-pending { background: rgba(78,114,232,.15); color: var(--accent); border: 1px solid rgba(78,114,232,.3); }
 .badge-synced  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(53,196,122,.3); }
 .badge-updated { background: rgba(232,168,53,.12); color: var(--amber); border: 1px solid rgba(232,168,53,.3); }
+.badge-invalid { background: rgba(232,80,80,.12); color: var(--red); border: 1px solid rgba(232,80,80,.3); }
+tr.row-error td { animation: flash-err .5s ease 2; }
+@keyframes flash-err { 0%,100%{background:transparent} 50%{background:rgba(232,80,80,.18)} }
+
+/* Required field highlight */
+select.field-required, input.field-required { border-color: var(--amber) !important; }
+
+/* Sync validation error banner */
+.sync-error-banner {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 12px; margin: 8px 14px 0;
+  background: rgba(232,80,80,.1); border: 1px solid rgba(232,80,80,.35);
+  border-radius: 5px; font-size: 12px; color: var(--red); line-height: 1.5;
+}
+.sync-error-banner ul { margin: 2px 0 0 14px; padding: 0; }
+.sync-error-banner .close-err {
+  margin-left: auto; cursor: pointer; opacity: .6; font-size: 14px; flex-shrink: 0;
+}
+.sync-error-banner .close-err:hover { opacity: 1; }
 
 /* ════════════════════════════════════════════════════════════════════════
    LOGIN SCREEN
@@ -880,13 +899,29 @@ function renderDraftDetail(c, editing) {
   sectionCell.appendChild(sv);
   grid.appendChild(sectionCell);
 
+  const diffVal = c.difficulty ?? null;  // null = unset (required before sync)
+  const diffViewLabel = diffVal !== null ? (DIFF[diffVal] || '—') : '<span style="color:var(--amber)">⚠ Required before sync</span>';
+
+  function diffEdit() {
+    const opts = [['', '— select —'], ...Object.entries(DIFF)]
+      .map(([k, v]) => `<option value="${k}"${String(k)===String(diffVal??'')?' selected':''}>${esc(v)}</option>`).join('');
+    return `<select id="e-diff" class="${diffVal===null?'field-required':''}">${opts}</select>`;
+  }
+
   grid.append(
-    cell('Type',     typeStr,     sel('e-type',     CASE_TYPE, typeId)),
-    cell('Priority', priorityStr, sel('e-priority', PRIORITY,  priorityId)),
-    cell('Tags',     c.tags,      txt('e-tags',     c.tags, '@smoke @feature')),
+    cell('Type',       typeStr,     sel('e-type',     CASE_TYPE, typeId)),
+    cell('Priority',   priorityStr, sel('e-priority', PRIORITY,  priorityId)),
+    cell('Difficulty', editing ? '' : '', editing ? diffEdit() : diffViewLabel),
+    cell('Tags',       c.tags,      txt('e-tags',     c.tags, '@smoke @feature')),
     cell('API Version', c.api_version, txt('e-apiver', c.api_version, '1.0')),
     cell('References',  c.refs,       txt('e-refs',   c.refs, 'https://...')),
   );
+
+  if (!editing) {
+    // Replace innerHTML of Difficulty cell's value with raw HTML (not escaped)
+    const diffCell = grid.querySelector('.meta-cell:nth-child(3) .meta-val');
+    if (diffCell && diffVal === null) diffCell.innerHTML = diffViewLabel;
+  }
 
   const regCell = document.createElement('div');
   regCell.className = 'meta-cell';
@@ -996,6 +1031,9 @@ async function saveDraftCaseEdit() {
   const priorityName = Object.entries(PRIORITY).find(([k]) => +k===priorityId)?.[1] || 'Medium';
   const typeName     = Object.entries(CASE_TYPE).find(([k]) => +k===typeId)?.[1]    || 'Manual';
 
+  const diffRaw  = $('e-diff')?.value;
+  const diffVal  = diffRaw !== '' && diffRaw !== undefined ? parseInt(diffRaw) : null;
+
   // Resolve section: clear cached section_id if name changed
   const sectionName = $('e-section')?.value.trim() || '';
   const prevCase    = currentDraftIdx !== null ? currentDraft.cases[currentDraftIdx] : {};
@@ -1005,6 +1043,7 @@ async function saveDraftCaseEdit() {
     title:         $('detail-title').textContent.trim(),
     priority:      priorityName,
     type:          typeName,
+    difficulty:    diffVal,
     section_name:  sectionName || null,
     section_id:    sectionId,
     tags:          $('e-tags').value.trim(),
@@ -1086,11 +1125,46 @@ $('quick-add-btn').addEventListener('click', quickAddCase);
 $('quick-add-cancel').addEventListener('click', () => { $('quick-add-bar').classList.remove('visible'); });
 $('quick-add-input').addEventListener('keydown', e => { if (e.key==='Enter') quickAddCase(); if (e.key==='Escape') $('quick-add-cancel').click(); });
 
+/* ── Sync validation ─────────────────────────────────────────────────── */
+function validateCaseForSync(c) {
+  const errs = [];
+  if (!c.title?.trim())       errs.push('Title is required');
+  if (!c.section_name?.trim() && !currentDraft?.meta?.section_name?.trim())
+                              errs.push('Section is required');
+  if (c.difficulty === null || c.difficulty === undefined)
+                              errs.push('Difficulty is required');
+  return errs;
+}
+
+function showSyncError(errs, anchorEl) {
+  // Remove any existing banner
+  anchorEl.parentElement?.querySelector('.sync-error-banner')?.remove();
+  const banner = document.createElement('div');
+  banner.className = 'sync-error-banner';
+  banner.innerHTML = `<div><strong>Cannot sync — missing required fields:</strong><ul>${
+    errs.map(e => `<li>${esc(e)}</li>`).join('')
+  }</ul></div><span class="close-err" title="Dismiss">✕</span>`;
+  banner.querySelector('.close-err').addEventListener('click', () => banner.remove());
+  anchorEl.after(banner);
+}
+
 /* ── Sync draft cases ───────────────────────────────────────────────── */
 async function syncOneDraftCase(idx, rowEl, btnEl) {
   if (!currentDraftFilename) return;
+  const c = currentDraft.cases[idx];
+  const errs = validateCaseForSync(c);
+  if (errs.length) {
+    // Show error banner below the cases table
+    const anchor = $('cases-body');
+    showSyncError(errs, anchor);
+    // Highlight the row
+    rowEl.classList.add('row-error');
+    setTimeout(() => rowEl.classList.remove('row-error'), 2500);
+    return;
+  }
   const orig = btnEl.textContent;
   btnEl.disabled = true; btnEl.textContent = '…';
+  $('cases-body').querySelector('.sync-error-banner')?.remove();
   try {
     const result = await api('POST', `/api/drafts/${currentDraftFilename}/sync/${idx}`);
     currentDraft = result.draft;
@@ -1107,7 +1181,23 @@ async function syncAllDraftCases() {
   if (!currentDraftFilename) return;
   const btn = document.getElementById('sync-all-btn');
   if (!btn) return;
+
+  // Validate all cases first
+  const invalidCases = (currentDraft.cases || [])
+    .map((c, i) => ({ i, errs: validateCaseForSync(c), title: c.title || `#${i+1}` }))
+    .filter(x => x.errs.length);
+
+  if (invalidCases.length) {
+    const lines = invalidCases.map(x => `<li><b>${esc(x.title)}</b>: ${x.errs.join(', ')}</li>`).join('');
+    showSyncError([`${invalidCases.length} case${invalidCases.length>1?'s':''} have missing fields:<ul>${lines}</ul>`], $('cases-body'));
+    // Flash the invalid rows
+    const rows = document.querySelectorAll('.case-row');
+    invalidCases.forEach(x => { if (rows[x.i]) { rows[x.i].classList.add('row-error'); setTimeout(()=>rows[x.i].classList.remove('row-error'),2500); } });
+    return;
+  }
+
   btn.disabled = true; btn.textContent = '…';
+  $('cases-body').querySelector('.sync-error-banner')?.remove();
   try {
     const r = await api('POST', `/api/drafts/${currentDraftFilename}/sync`);
     const ok  = r.results.filter(x => x.ok).length;
@@ -1146,15 +1236,23 @@ async function deleteDraftFile() {
 /* ── Sync-one button (detail panel header) ──────────────────────────── */
 $('sync-one-btn').addEventListener('click', async () => {
   if (!currentDraftFilename || currentDraftIdx === null) return;
+  const c = currentDraft.cases[currentDraftIdx];
+  const errs = validateCaseForSync(c);
+  if (errs.length) {
+    showSyncError(errs, $('detail-header'));
+    return;
+  }
+  $('detail-body').querySelector('.sync-error-banner')?.remove();
+  $('detail-header').querySelector('.sync-error-banner')?.remove();
   const btn = $('sync-one-btn');
   btn.disabled = true; btn.textContent = '…';
   try {
     const result = await api('POST', `/api/drafts/${currentDraftFilename}/sync/${currentDraftIdx}`);
     currentDraft = result.draft;
-    const c = currentDraft.cases[currentDraftIdx];
+    const updated = currentDraft.cases[currentDraftIdx];
     $('detail-case-id').textContent = `C${result.testrail_id}`;
     btn.textContent = '↑ Update'; btn.disabled = false;
-    renderDraftDetail(c, false);
+    renderDraftDetail(updated, false);
     renderDraftCases(currentDraft);
     await loadDrafts();
     toast(`${result.action === 'created' ? 'Created' : 'Updated'} C${result.testrail_id}`);
