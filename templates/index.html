@@ -1136,14 +1136,17 @@ function validateCaseForSync(c) {
   return errs;
 }
 
-function showSyncError(errs, anchorEl) {
-  // Remove any existing banner
+// showSyncError(title, items, anchorEl)
+// title — plain string header
+// items — array of plain strings (or null for a single-message banner)
+function showSyncError(title, items, anchorEl) {
   anchorEl.parentElement?.querySelector('.sync-error-banner')?.remove();
   const banner = document.createElement('div');
   banner.className = 'sync-error-banner';
-  banner.innerHTML = `<div><strong>Cannot sync — missing required fields:</strong><ul>${
-    errs.map(e => `<li>${esc(e)}</li>`).join('')
-  }</ul></div><span class="close-err" title="Dismiss">✕</span>`;
+  const body = items?.length
+    ? `<strong>${esc(title)}</strong><ul>${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`
+    : `<strong>${esc(title)}</strong>`;
+  banner.innerHTML = `<div>${body}</div><span class="close-err" title="Dismiss">✕</span>`;
   banner.querySelector('.close-err').addEventListener('click', () => banner.remove());
   anchorEl.after(banner);
 }
@@ -1154,9 +1157,8 @@ async function syncOneDraftCase(idx, rowEl, btnEl) {
   const c = currentDraft.cases[idx];
   const errs = validateCaseForSync(c);
   if (errs.length) {
-    // Show error banner below the cases table
     const anchor = $('cases-body');
-    showSyncError(errs, anchor);
+    showSyncError('Cannot sync — missing required fields', errs, anchor);
     // Highlight the row
     rowEl.classList.add('row-error');
     setTimeout(() => rowEl.classList.remove('row-error'), 2500);
@@ -1188,8 +1190,9 @@ async function syncAllDraftCases() {
     .filter(x => x.errs.length);
 
   if (invalidCases.length) {
-    const lines = invalidCases.map(x => `<li><b>${esc(x.title)}</b>: ${x.errs.join(', ')}</li>`).join('');
-    showSyncError([`${invalidCases.length} case${invalidCases.length>1?'s':''} have missing fields:<ul>${lines}</ul>`], $('cases-body'));
+    const header = `Cannot sync — ${invalidCases.length} case${invalidCases.length>1?'s':''} have missing fields`;
+    const items  = invalidCases.map(x => `${x.title}: ${x.errs.join(', ')}`);
+    showSyncError(header, items, $('cases-body'));
     // Flash the invalid rows
     const rows = document.querySelectorAll('.case-row');
     invalidCases.forEach(x => { if (rows[x.i]) { rows[x.i].classList.add('row-error'); setTimeout(()=>rows[x.i].classList.remove('row-error'),2500); } });
@@ -1239,7 +1242,7 @@ $('sync-one-btn').addEventListener('click', async () => {
   const c = currentDraft.cases[currentDraftIdx];
   const errs = validateCaseForSync(c);
   if (errs.length) {
-    showSyncError(errs, $('detail-header'));
+    showSyncError('Cannot sync — missing required fields', errs, $('detail-header'));
     return;
   }
   $('detail-body').querySelector('.sync-error-banner')?.remove();
