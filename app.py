@@ -107,9 +107,17 @@ def _sync_one(client: TestrailClient, draft: dict, idx: int) -> dict:
         [s.get("action", "") for s in case.get("steps", [])],
         [s.get("expected", "") for s in case.get("steps", [])],
     )
-    difficulty = case.get("difficulty")
+    _DIFF_NAMES = {"easy": 1, "medium": 2, "difficult": 3}
+    difficulty  = case.get("difficulty")
     if difficulty is None:
         raise ValueError("Difficulty is required before syncing.")
+    if isinstance(difficulty, str):
+        difficulty = _DIFF_NAMES.get(difficulty.lower())
+        if difficulty is None:
+            raise ValueError(f"Unknown difficulty '{case['difficulty']}'. Use Easy, Medium, or Difficult.")
+    difficulty = int(difficulty)
+    if difficulty not in (1, 2, 3):
+        raise ValueError(f"Difficulty must be 1 (Easy), 2 (Medium), or 3 (Difficult); got {difficulty}.")
 
     custom = {
         "custom_automated_status": 1,          # To Do

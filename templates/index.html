@@ -899,7 +899,12 @@ function renderDraftDetail(c, editing) {
   sectionCell.appendChild(sv);
   grid.appendChild(sectionCell);
 
-  const diffVal = c.difficulty ?? null;
+  // Normalise legacy string names ("Easy"/"Medium"/"Difficult") to integer IDs
+  const DIFF_NAME_TO_ID = { easy:1, medium:2, difficult:3 };
+  const rawDiff = c.difficulty ?? null;
+  const diffVal = rawDiff === null ? null
+    : typeof rawDiff === 'string' ? (DIFF_NAME_TO_ID[rawDiff.toLowerCase()] ?? null)
+    : parseInt(rawDiff) || null;
 
   // Difficulty cell — built explicitly so we can use innerHTML for the warning
   const diffCell = document.createElement('div');
