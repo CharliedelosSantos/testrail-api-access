@@ -899,29 +899,31 @@ function renderDraftDetail(c, editing) {
   sectionCell.appendChild(sv);
   grid.appendChild(sectionCell);
 
-  const diffVal = c.difficulty ?? null;  // null = unset (required before sync)
-  const diffViewLabel = diffVal !== null ? (DIFF[diffVal] || '—') : '<span style="color:var(--amber)">⚠ Required before sync</span>';
+  const diffVal = c.difficulty ?? null;
 
-  function diffEdit() {
-    const opts = [['', '— select —'], ...Object.entries(DIFF)]
+  // Difficulty cell — built explicitly so we can use innerHTML for the warning
+  const diffCell = document.createElement('div');
+  diffCell.className = 'meta-cell';
+  diffCell.innerHTML = `<div class="meta-lbl">Difficulty</div>`;
+  const dv = document.createElement('div'); dv.className = 'meta-val';
+  if (editing) {
+    const diffOpts = [['', '— select —'], ...Object.entries(DIFF)]
       .map(([k, v]) => `<option value="${k}"${String(k)===String(diffVal??'')?' selected':''}>${esc(v)}</option>`).join('');
-    return `<select id="e-diff" class="${diffVal===null?'field-required':''}">${opts}</select>`;
+    dv.innerHTML = `<select id="e-diff" class="${diffVal===null?'field-required':''}">${diffOpts}</select>`;
+  } else {
+    if (diffVal !== null) dv.textContent = DIFF[diffVal] || '—';
+    else dv.innerHTML = '<span style="color:var(--amber)">⚠ Required before sync</span>';
   }
+  diffCell.appendChild(dv);
 
   grid.append(
-    cell('Type',       typeStr,     sel('e-type',     CASE_TYPE, typeId)),
-    cell('Priority',   priorityStr, sel('e-priority', PRIORITY,  priorityId)),
-    cell('Difficulty', editing ? '' : '', editing ? diffEdit() : diffViewLabel),
-    cell('Tags',       c.tags,      txt('e-tags',     c.tags, '@smoke @feature')),
-    cell('API Version', c.api_version, txt('e-apiver', c.api_version, '1.0')),
-    cell('References',  c.refs,       txt('e-refs',   c.refs, 'https://...')),
+    cell('Type',        typeStr,          sel('e-type',     CASE_TYPE, typeId)),
+    cell('Priority',    priorityStr,      sel('e-priority', PRIORITY,  priorityId)),
+    diffCell,
+    cell('Tags',        c.tags,           txt('e-tags',     c.tags, '@smoke @feature')),
+    cell('API Version', c.api_version,    txt('e-apiver',   c.api_version, '1.0')),
+    cell('References',  c.refs,           txt('e-refs',     c.refs, 'https://...')),
   );
-
-  if (!editing) {
-    // Replace innerHTML of Difficulty cell's value with raw HTML (not escaped)
-    const diffCell = grid.querySelector('.meta-cell:nth-child(3) .meta-val');
-    if (diffCell && diffVal === null) diffCell.innerHTML = diffViewLabel;
-  }
 
   const regCell = document.createElement('div');
   regCell.className = 'meta-cell';
