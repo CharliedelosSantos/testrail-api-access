@@ -363,6 +363,76 @@ def sync_one(filename, idx):
         return _err(str(e))
 
 
+@app.route("/api/drafts/from-cases", methods=["POST"])
+def draft_from_cases():
+    data     = request.get_json(force=True)
+    case_ids = data.get("case_ids", [])
+    name     = data.get("name", "imported-cases")
+    pbi_url  = data.get("pbi_url", "")
+    section_name_override = data.get("section_name", "")
+
+    if not case_ids:
+        return _err("No case ids provided.")
+
+    try:
+        client = _client()
+    except RuntimeError:
+        return _err("not_connected", 401)
+
+    _PRIORITY_INV = {1: "Low", 2: "Medium", 3: "High", 4: "Critical"}
+    _TYPE_INV     = {13: "Manual", 6: "Functional", 9: "Regression",
+                     3: "Automated", 11: "Smoke & Sanity"}
+
+    cases = []
+    for cid in case_ids:
+        try:
+            c = client.get_case(int(cid))
+        except req_lib.HTTPError as e:
+            return _err(f"Error fetching C{cid}: {e.response.text[:200]}", e.response.status_code)
+
+        raw_steps = c.get("custom_steps_separated") or []
+        steps = [
+            {"action": s.get("content", ""), "expected": s.get("expected", "")}
+            for s in raw_steps
+        ]
+        preconds = re.sub(r"<[^>]+>", "", c.get("custom_preconds") or "").strip()
+
+        cases.append({
+            "title":         c.get("title", ""),
+            "priority":      _PRIORITY_INV.get(c.get("priority_id"), "Medium"),
+            "type":          _TYPE_INV.get(c.get("type_id"), "Manual"),
+            "difficulty":    c.get("custom_difficulty"),
+            "section_id":    c.get("section_id"),
+            "section_name":  section_name_override or "",
+            "steps":         steps,
+            "tags":          c.get("custom_case_cucumber_tags", ""),
+            "api_version":   c.get("custom_case_api_version", ""),
+            "api_regression": c.get("custom_case_api_regression", False),
+            "refs":          c.get("refs", ""),
+            "preconditions": preconds,
+            "testrail_id":   c["id"],
+            "status":        "synced",
+        })
+
+    first_section_id = cases[0]["section_id"] if cases else None
+    path, fn = _draft_path(name)
+    if os.path.exists(path):
+        return _err(f"'{fn}' already exists.")
+
+    draft = {
+        "meta": {
+            "section_name": section_name_override,
+            "section_id":   first_section_id,
+            "pbi_url":      pbi_url,
+            "created_at":   datetime.now(timezone.utc).isoformat(),
+            "updated_at":   datetime.now(timezone.utc).isoformat(),
+        },
+        "cases": cases,
+    }
+    _save_draft(path, draft)
+    return jsonify({"filename": fn, **draft})
+
+
 @app.route("/api/drafts/<filename>/sync", methods=["POST"])
 def sync_all(filename):
     path, _ = _draft_path(filename)

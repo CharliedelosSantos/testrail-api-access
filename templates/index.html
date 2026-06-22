@@ -324,7 +324,7 @@ textarea.precond-edit { width: 100%; padding: 8px 10px; resize: vertical; min-he
 #add-step-btn { margin-top: 8px; }
 
 /* ── Modal ───────────────────────────────────────────────────────────── */
-#modal-overlay {
+#modal-overlay, #export-modal {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center;
@@ -339,6 +339,20 @@ textarea.precond-edit { width: 100%; padding: 8px 10px; resize: vertical; min-he
 .modal-card input, .modal-card select { width: 100%; padding: 8px 11px; font-size: 13px; }
 .modal-note { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+
+/* ── Selection toolbar ───────────────────────────────────────────────── */
+#selection-bar {
+  display: none; align-items: center; gap: 8px;
+  padding: 6px 14px; flex-shrink: 0;
+  background: rgba(78,114,232,.1); border-bottom: 1px solid rgba(78,114,232,.3);
+  font-size: 12px; color: var(--text);
+}
+#selection-bar.visible { display: flex; }
+#selection-bar .sel-count { flex: 1; }
+
+/* Checkbox column */
+.td-check { width: 32px; padding-left: 14px !important; }
+.td-check input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent); }
 
 /* ── Misc ────────────────────────────────────────────────────────────── */
 .loader { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 16px; color: var(--text-muted); font-size: 12px; }
@@ -443,6 +457,13 @@ textarea.precond-edit { width: 100%; padding: 8px 10px; resize: vertical; min-he
           </div>
         </div>
       </div>
+      <!-- Selection toolbar (live mode only) -->
+      <div id="selection-bar">
+        <span class="sel-count" id="sel-count-label">0 selected</span>
+        <button class="btn btn-primary btn-sm" id="export-draft-btn">↓ Export to Draft</button>
+        <button class="btn btn-secondary btn-sm" id="sel-clear-btn">Clear</button>
+      </div>
+
       <!-- Quick-add bar (draft mode only) -->
       <div id="quick-add-bar">
         <input id="quick-add-input" type="text" placeholder="Case title… (Enter to add)">
@@ -489,6 +510,26 @@ textarea.precond-edit { width: 100%; padding: 8px 10px; resize: vertical; min-he
     <div class="modal-actions">
       <button class="btn btn-secondary" id="nd-cancel">Cancel</button>
       <button class="btn btn-primary"   id="nd-create">Create File</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ EXPORT TO DRAFT MODAL ════════════════════════════════════ -->
+<div id="export-modal" hidden>
+  <div class="modal-card">
+    <h2>Export Cases to Draft</h2>
+    <p id="export-modal-subtitle" style="font-size:12px;color:var(--text-muted);margin-top:-10px;margin-bottom:4px"></p>
+
+    <label>File name</label>
+    <input id="ex-name" type="text" placeholder="e.g. transfers-edits">
+    <div class="modal-note">Saved as <code>case_drafts/&lt;name&gt;.json</code></div>
+
+    <label>PBI / Reference URL <span style="font-weight:400;text-transform:none">(optional)</span></label>
+    <input id="ex-pbi" type="url" placeholder="https://dev.azure.com/...">
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="ex-cancel">Cancel</button>
+      <button class="btn btn-primary"   id="ex-create">Export</button>
     </div>
   </div>
 </div>
@@ -649,6 +690,7 @@ function activateSection(id, name, rowEl) {
   currentDraft = null; currentDraftFilename = null;
   $('quick-add-bar').classList.remove('visible');
   document.querySelector('.draft-header-extra')?.remove();
+  clearSelection();
   loadLiveCases(id, name);
 }
 
@@ -680,19 +722,57 @@ function renderLiveCases(cases) {
     $('cases-body').innerHTML = '<div class="empty-state"><div class="icon">🔍</div>No test cases in this section.</div>';
     return;
   }
+  selectedCaseIds.clear();
+  updateSelectionBar();
+
   const table = document.createElement('table');
   table.id = 'cases-table';
-  table.innerHTML = `<thead><tr><th>ID</th><th>Title</th><th>API Ver</th></tr></thead><tbody></tbody>`;
+  table.innerHTML = `<thead><tr>
+    <th class="td-check"><input type="checkbox" id="check-all" title="Select all"></th>
+    <th>ID</th><th>Title</th><th>API Ver</th>
+  </tr></thead><tbody></tbody>`;
   const tbody = table.querySelector('tbody');
+
   cases.forEach(c => {
     const tr = document.createElement('tr');
     tr.className = 'case-row';
     tr.dataset.id   = c.id;
     tr.dataset.text = `c${c.id} ${(c.title||'').toLowerCase()}`;
-    tr.innerHTML = `<td class="td-id">C${c.id}</td><td class="td-title">${esc(c.title||'')}</td><td class="td-ver">${esc(c.custom_case_api_version||'')}</td>`;
+    tr.innerHTML = `
+      <td class="td-check"><input type="checkbox" class="case-check" data-id="${c.id}"></td>
+      <td class="td-id">C${c.id}</td>
+      <td class="td-title">${esc(c.title||'')}</td>
+      <td class="td-ver">${esc(c.custom_case_api_version||'')}</td>`;
+
+    const cb = tr.querySelector('.case-check');
+    cb.addEventListener('change', e => {
+      e.stopPropagation();
+      if (cb.checked) selectedCaseIds.add(c.id);
+      else            selectedCaseIds.delete(c.id);
+      // Sync "check all" state
+      const all  = document.querySelectorAll('.case-check');
+      const chkd = document.querySelectorAll('.case-check:checked');
+      const hdr  = document.getElementById('check-all');
+      if (hdr) { hdr.checked = chkd.length === all.length; hdr.indeterminate = chkd.length > 0 && chkd.length < all.length; }
+      updateSelectionBar();
+    });
+    cb.addEventListener('click', e => e.stopPropagation());
+
     tr.addEventListener('click', () => openLiveCase(c.id, tr));
     tbody.appendChild(tr);
   });
+
+  // Select-all header checkbox
+  table.querySelector('#check-all').addEventListener('change', function() {
+    document.querySelectorAll('.case-check').forEach(cb => {
+      cb.checked = this.checked;
+      const id = parseInt(cb.dataset.id);
+      if (this.checked) selectedCaseIds.add(id);
+      else              selectedCaseIds.delete(id);
+    });
+    updateSelectionBar();
+  });
+
   $('cases-body').innerHTML = '';
   $('cases-body').appendChild(table);
 }
@@ -752,6 +832,7 @@ function activateDraft(filename, rowEl) {
   rowEl.classList.add('active');
   draftMode = true;
   currentCase = null;
+  clearSelection();
   openDraftFile(filename);
 }
 
@@ -1466,6 +1547,74 @@ function renderLiveDetail(c, editing) {
   }
   body.appendChild(ssec);
 }
+
+/* ── Live case selection & export ────────────────────────────────────── */
+let selectedCaseIds = new Set();
+
+function updateSelectionBar() {
+  const n   = selectedCaseIds.size;
+  const bar = $('selection-bar');
+  if (n > 0 && !draftMode) {
+    bar.classList.add('visible');
+    $('sel-count-label').textContent = `${n} case${n !== 1 ? 's' : ''} selected`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+function clearSelection() {
+  selectedCaseIds.clear();
+  document.querySelectorAll('.case-check').forEach(cb => { cb.checked = false; });
+  const hdr = document.getElementById('check-all');
+  if (hdr) hdr.checked = false;
+  updateSelectionBar();
+}
+
+$('sel-clear-btn').addEventListener('click', clearSelection);
+
+$('export-draft-btn').addEventListener('click', () => {
+  if (!selectedCaseIds.size) return;
+  $('ex-name').value = '';
+  $('ex-pbi').value  = '';
+  $('export-modal-subtitle').textContent = `${selectedCaseIds.size} case${selectedCaseIds.size !== 1 ? 's' : ''} selected`;
+  $('export-modal').hidden = false;
+  setTimeout(() => $('ex-name').focus(), 50);
+});
+
+$('ex-cancel').addEventListener('click', () => { $('export-modal').hidden = true; });
+$('export-modal').addEventListener('click', e => { if (e.target === $('export-modal')) $('export-modal').hidden = true; });
+
+['ex-name','ex-pbi'].forEach(id =>
+  $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('ex-create').click(); })
+);
+
+$('ex-create').addEventListener('click', async () => {
+  const name = $('ex-name').value.trim();
+  if (!name) { $('ex-name').focus(); return; }
+
+  const btn = $('ex-create');
+  btn.disabled = true; btn.textContent = 'Exporting…';
+  try {
+    await api('POST', '/api/drafts/from-cases', {
+      name,
+      case_ids:     Array.from(selectedCaseIds),
+      pbi_url:      $('ex-pbi').value.trim(),
+      section_name: document.querySelector('.tree-label.active')?.dataset?.name || '',
+    });
+    $('export-modal').hidden = true;
+    clearSelection();
+    await loadDrafts();
+    // Auto-activate the new draft
+    const rows = document.querySelectorAll('.draft-row');
+    const newRow = Array.from(rows).find(r => r.querySelector('.draft-row-name')?.textContent === name);
+    if (newRow) newRow.click();
+    toast(`Exported ${name}.json`);
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Export';
+  }
+});
 
 async function saveLiveCaseEdit() {
   if (!currentCase) return;
