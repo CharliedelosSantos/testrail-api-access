@@ -73,6 +73,8 @@ def _load_draft(path: str) -> dict:
 
 
 def _save_draft(path: str, draft: dict) -> None:
+    if "meta" not in draft:
+        draft["meta"] = {}
     draft["meta"]["updated_at"] = datetime.now(timezone.utc).isoformat()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(draft, f, indent=2, ensure_ascii=False)
